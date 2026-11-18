@@ -14,6 +14,8 @@ const el = {
   seek: $('#seek'), tCur: $('#tCur'), tDur: $('#tDur'),
   btnPlay: $('#btnPlay'), btnPrev: $('#btnPrev'), btnNext: $('#btnNext'),
   btnSearch: $('#btnSearch'), btnBeat: $('#btnBeat'), btnLayout: $('#btnLayout'), btnFs: $('#btnFs'), btnSettings: $('#btnSettings'),
+  btnVol: $('#btnVol'), volume: $('#volume'),
+  btnLists: $('#btnLists'), listPanel: $('#listPanel'), listBody: $('#listBody'), listTitle: $('#listTitle'), listBack: $('#listBack'), closeList: $('#closeList'),
   btnStyle: $('#btnStyle'), stylePanel: $('#stylePanel'), styleBody: $('#styleBody'), closeStyle: $('#closeStyle'),
   panel: $('#searchPanel'), searchInput: $('#searchInput'), results: $('#results'), closeSearch: $('#closeSearch'),
   beatMenu: $('#beatMenu'),
@@ -26,6 +28,9 @@ const el = {
 
 const S = {
   demo: false,
+  volume: 70,
+  prevVol: 50,
+  volTouched: -1e9,
   albumColors: DEFAULT_PALETTE.colors,
   track: null,
   lyrics: null,
@@ -281,6 +286,13 @@ function applyPlayback(st, rtt) {
     S.playing = st.playing;
     S.track.durationMs = st.durationMs;
   }
+  if (st.volume != null && performance.now() - S.volTouched > 3500) {
+    S.volume = st.volume;
+    el.volume.value = st.volume;
+    volIcon();
+  }
+  el.volume.disabled = st.canVolume === false;
+  el.volume.title = st.canVolume === false ? "This device doesn't allow volume control from Lumen" : '';
   syncPlayIcon();
 }
 
@@ -356,6 +368,32 @@ function updateProgress() {
   }
 }
 
+// ---------- volume ----------
+
+let volTimer;
+function volIcon() {
+  el.btnVol.dataset.level = S.volume === 0 ? 'mute' : S.volume < 40 ? 'low' : 'high';
+}
+function volErr(e) {
+  if (e?.status === 403) return toast("This device doesn't allow volume control from Lumen. Use Spotify's own volume.", 5200);
+  handleErr(e);
+}
+function setVolume(v) {
+  S.volume = Math.max(0, Math.min(100, Math.round(v)));
+  S.volTouched = performance.now();
+  el.volume.value = S.volume;
+  volIcon();
+  if (S.demo) return;
+  clearTimeout(volTimer);
+  volTimer = setTimeout(() => sp.setVolume(S.volume).catch(volErr), 150);
+}
+function toggleMute() {
+  if (S.volume > 0) {
+    S.prevVol = S.volume;
+    setVolume(0);
+  } else setVolume(S.prevVol || 50);
+}
+
 // ---------- search ----------
 
 let searchSeq = 0;
@@ -365,6 +403,7 @@ function openSearch() {
   el.panel.classList.add('open');
   closeBeatMenu();
   closeStyle();
+  closeLists();
   setTimeout(() => el.searchInput.focus(), 200);
 }
 function closeSearch() {
@@ -500,7 +539,7 @@ function wake() {
   document.body.classList.remove('idle');
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
-    const busy = el.panel.classList.contains('open') || el.stylePanel.classList.contains('open') || !el.overlay.hidden || !el.beatMenu.hidden;
+    const busy = el.panel.classList.contains('open') || el.stylePanel.classList.contains('open') || el.listPanel.classList.contains('open') || !el.overlay.hidden || !el.beatMenu.hidden;
     if (S.track && S.playing && !busy) document.body.classList.add('idle');
   }, 3500);
 }
@@ -725,6 +764,7 @@ function buildStylePanel() {
 function openStyle() {
   el.stylePanel.classList.add('open');
   closeSearch();
+  closeLists();
   closeBeatMenu();
 }
 function closeStyle() {
@@ -735,6 +775,190 @@ function toggleStyle() {
   else openStyle();
 }
 
+// ---------- playlists ----------
+
+const PL = { items: [], hasMore: false, loaded: false, cur: null, tracks: [], tHasMore: false };
+
+function plMessage(msg, actionLabel, action) {
+  el.listBody.innerHTML = '';
+  const p = document.createElement('p');
+  p.className = 'empty';
+  p.textContent = msg;
+  el.listBody.append(p);
+  if (actionLabel) {
+    const b = document.createElement('button');
+    b.className = 'primary';
+    b.textContent = actionLabel;
+    b.addEventListener('click', action);
+    el.listBody.append(b);
+  }
+}
+
+function plRow(img, title, sub, onClick) {
+  const b = document.createElement('button');
+  b.className = 'result';
+  const im = document.createElement('img');
+  im.alt = '';
+  if (img) im.src = img;
+  const box = document.createElement('span');
+  const t = document.createElement('span');
+  t.className = 't';
+  t.textContent = title;
+  const s = document.createElement('span');
+  s.className = 's';
+  s.textContent = sub;
+  box.append(t, s);
+  b.append(im, box);
+  b.addEventListener('click', onClick);
+  return b;
+}
+
+function plError(e, retry) {
+  if (e?.status === 429) return plMessage('Spotify is busy. Try again in a moment.', 'Try again', retry);
+  if (e?.status === 401 || e?.reason === 'NO_TOKEN') return showOverlay('connect');
+  if (e?.status === 403) {
+    return plMessage('Lumen needs your permission to read your playlists.', 'Reconnect Spotify', () => sp.login().catch((er) => toast(er.message)));
+  }
+  console.warn(e);
+  plMessage("Couldn't load playlists. Check your connection.", 'Try again', retry);
+}
+
+function renderPlaylists() {
+  PL.cur = null;
+  el.listTitle.textContent = 'Playlists';
+  el.listBack.classList.add('hide');
+  if (!PL.items.length) return plMessage('No playlists found in your Spotify library.');
+  el.listBody.innerHTML = '';
+  const rows = document.createElement('div');
+  rows.className = 'rows';
+  PL.items.forEach((p) => {
+    const n = p.count != null ? `${p.count} songs · ` : '';
+    const sub = p.readable ? `${n}${p.owner}` : `${p.owner} · tap to play`;
+    rows.append(plRow(p.art, p.name, sub, () => (p.readable ? openPlaylist(p) : playPlaylist(p))));
+  });
+  el.listBody.append(rows);
+  if (PL.hasMore) {
+    const more = document.createElement('button');
+    more.className = 'ghost more';
+    more.textContent = 'Show more';
+    more.addEventListener('click', () => loadPlaylists(false));
+    el.listBody.append(more);
+  }
+}
+
+async function loadPlaylists(reset) {
+  if (reset) {
+    PL.items = [];
+    PL.hasMore = false;
+    plMessage('Loading playlists…');
+  }
+  try {
+    const d = await sp.getPlaylists(PL.items.length);
+    PL.items.push(...d.items);
+    PL.hasMore = d.hasMore;
+    PL.loaded = true;
+    renderPlaylists();
+  } catch (e) {
+    plError(e, () => loadPlaylists(reset));
+  }
+}
+
+async function playPlaylist(p, uri) {
+  try {
+    await sp.playIn(p.uri, uri);
+    toast(uri ? 'Playing' : `Playing ${p.name}`);
+    closeLists();
+    setTimeout(poll, 800);
+  } catch (e) {
+    handleErr(e);
+  }
+}
+
+function renderTracks() {
+  const p = PL.cur;
+  el.listBody.innerHTML = '';
+  const actions = document.createElement('div');
+  actions.className = 'pl-actions';
+  const play = document.createElement('button');
+  play.className = 'primary';
+  play.textContent = 'Play playlist';
+  play.addEventListener('click', () => playPlaylist(p));
+  actions.append(play);
+  el.listBody.append(actions);
+  if (!PL.tracks.length) {
+    const m = document.createElement('p');
+    m.className = 'empty';
+    m.textContent = 'No songs to show. You can still play the playlist.';
+    el.listBody.append(m);
+    return;
+  }
+  const rows = document.createElement('div');
+  rows.className = 'rows';
+  PL.tracks.forEach((t) => rows.append(plRow(t.art, t.name, t.artists, () => playPlaylist(p, t.uri))));
+  el.listBody.append(rows);
+  if (PL.tHasMore) {
+    const more = document.createElement('button');
+    more.className = 'ghost more';
+    more.textContent = 'Show more';
+    more.addEventListener('click', () => loadTracks(false));
+    el.listBody.append(more);
+  }
+}
+
+async function loadTracks(reset) {
+  const p = PL.cur;
+  if (reset) {
+    PL.tracks = [];
+    PL.tHasMore = false;
+    plMessage('Loading songs…');
+  }
+  try {
+    const d = await sp.getPlaylistTracks(p.id, PL.tracks.length);
+    if (PL.cur !== p) return;
+    PL.tracks.push(...d.tracks);
+    PL.tHasMore = d.hasMore;
+    renderTracks();
+  } catch (e) {
+    if (PL.cur !== p) return;
+    if (e?.status === 403 || e?.status === 404) {
+      PL.tracks = [];
+      PL.tHasMore = false;
+      renderTracks();
+      return toast("Spotify doesn't let apps in development mode list this playlist's songs.", 5200);
+    }
+    plError(e, () => loadTracks(reset));
+  }
+}
+
+function openPlaylist(p) {
+  PL.cur = p;
+  el.listTitle.textContent = p.name;
+  el.listBack.classList.remove('hide');
+  loadTracks(true);
+}
+
+function openLists() {
+  el.listPanel.classList.add('open');
+  closeSearch();
+  closeStyle();
+  closeBeatMenu();
+  if (S.demo) return plMessage('Playlists work once you connect Spotify.');
+  if (!sp.hasScope('playlist-read-private')) {
+    return plMessage('Lumen needs your permission to read your playlists. You only do this once.', 'Reconnect Spotify', () =>
+      sp.login().catch((e) => toast(e.message))
+    );
+  }
+  if (PL.loaded) renderPlaylists();
+  else loadPlaylists(true);
+}
+function closeLists() {
+  el.listPanel.classList.remove('open');
+}
+function toggleLists() {
+  if (el.listPanel.classList.contains('open')) closeLists();
+  else openLists();
+}
+
 // ---------- wiring ----------
 
 function bindUI() {
@@ -743,6 +967,11 @@ function bindUI() {
   el.btnNext.addEventListener('click', () => skip(1));
   el.btnSearch.addEventListener('click', openSearch);
   el.btnStyle.addEventListener('click', toggleStyle);
+  el.btnLists.addEventListener('click', toggleLists);
+  el.volume.addEventListener('input', () => setVolume(Number(el.volume.value)));
+  el.btnVol.addEventListener('click', toggleMute);
+  el.closeList.addEventListener('click', closeLists);
+  el.listBack.addEventListener('click', renderPlaylists);
   el.closeStyle.addEventListener('click', closeStyle);
   el.closeSearch.addEventListener('click', closeSearch);
   el.btnFs.addEventListener('click', toggleFullscreen);
@@ -827,7 +1056,11 @@ function bindUI() {
       case 'ArrowRight': skip(1); break;
       case 'ArrowLeft': skip(-1); break;
       case 'c': case 'C': toggleStyle(); break;
-      case 'Escape': closeSearch(); closeBeatMenu(); closeStyle(); break;
+      case 'p': case 'P': toggleLists(); break;
+      case 'm': case 'M': toggleMute(); break;
+      case 'ArrowUp': e.preventDefault(); setVolume(S.volume + 5); break;
+      case 'ArrowDown': e.preventDefault(); setVolume(S.volume - 5); break;
+      case 'Escape': closeSearch(); closeBeatMenu(); closeStyle(); closeLists(); break;
       default:
     }
   });
@@ -897,6 +1130,7 @@ async function boot() {
   applyLayout();
   buildStylePanel();
   applyCfg();
+  volIcon();
   syncPlayIcon();
   requestAnimationFrame(frame);
   wake();

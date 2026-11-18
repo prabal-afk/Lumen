@@ -21,6 +21,9 @@
       <button class="icon" id="btnSearch" title="Search songs (S)" aria-label="Search songs">
         <svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       </button>
+      <button class="icon" id="btnLists" title="Playlists (P)" aria-label="Playlists">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 6h11M4 11h11M4 16h6"/><path d="M19 13v6"/><circle cx="17" cy="19" r="2"/></svg>
+      </button>
       <button class="icon" id="btnStyle" title="Customise (C)" aria-label="Customise">
         <svg class="ico" viewBox="0 0 24 24"><path d="M12 3C7 3 3 6.6 3 11c0 3.3 2.5 5 5 5h1.5a1.5 1.5 0 0 1 1 2.6 1.5 1.5 0 0 0 1.1 2.4C17 21 21 17 21 12c0-5-4-9-9-9z"/><circle cx="8" cy="10" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16" cy="10" r="1"/></svg>
       </button>
@@ -63,6 +66,12 @@
       <input class="seek" id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek">
       <span id="tDur">0:00</span>
     </div>
+    <div class="vol" id="volBox">
+      <button class="icon" id="btnVol" data-level="high" title="Mute (M)" aria-label="Mute or unmute">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 9.5v5h3.5l4.5 4v-13l-4.5 4H4z"/><path class="w1" d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/><path class="w2" d="M18 7a7 7 0 0 1 0 10"/><path class="x" d="m16 9.5 5 5m0-5-5 5"/></svg>
+      </button>
+      <input id="volume" type="range" min="0" max="100" step="1" value="70" aria-label="Volume">
+    </div>
     <div class="controls">
       <button class="icon lg" id="btnPrev" aria-label="Previous song">
         <svg class="ico fill" viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg>
@@ -85,6 +94,19 @@
       </button>
     </div>
     <div class="results" id="results"></div>
+  </aside>
+
+  <aside class="panel" id="listPanel" aria-label="Playlists">
+    <div class="panel-head">
+      <button class="icon hide" id="listBack" aria-label="Back to playlists">
+        <svg class="ico" viewBox="0 0 24 24"><path d="m15 5-7 7 7 7"/></svg>
+      </button>
+      <h2 class="panel-title" id="listTitle">Playlists</h2>
+      <button class="icon" id="closeList" aria-label="Close playlists">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="panel-body" id="listBody"></div>
   </aside>
 
   <aside class="panel" id="stylePanel" aria-label="Customise">

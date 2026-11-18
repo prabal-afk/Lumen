@@ -3,7 +3,13 @@
 const AUTH_URL = 'https://accounts.spotify.com/authorize';
 const TOKEN_URL = 'https://accounts.spotify.com/api/token';
 const API = 'https://api.spotify.com/v1';
-const SCOPES = ['user-read-playback-state', 'user-read-currently-playing', 'user-modify-playback-state'];
+const SCOPES = [
+  'user-read-playback-state',
+  'user-read-currently-playing',
+  'user-modify-playback-state',
+  'playlist-read-private',
+  'playlist-read-collaborative',
+];
 const K = { client: 'lumen.clientId', tokens: 'lumen.tokens', verifier: 'lumen.pkce', state: 'lumen.state' };
 
 export class SpotifyError extends Error {
@@ -27,6 +33,7 @@ const readTokens = () => {
     return null;
   }
 };
+export const hasScope = (s) => (readTokens()?.scope || '').split(' ').includes(s);
 export const isSignedIn = () => !!readTokens()?.refresh_token;
 export const signOut = () => localStorage.removeItem(K.tokens);
 
@@ -83,6 +90,7 @@ function saveTokens(d, prev) {
     access_token: d.access_token,
     refresh_token: d.refresh_token || prev?.refresh_token,
     expires_at: Date.now() + (d.expires_in || 3600) * 1000,
+    scope: d.scope || prev?.scope || '',
   };
   localStorage.setItem(K.tokens, JSON.stringify(t));
   return t;
@@ -212,6 +220,8 @@ export async function getPlayback() {
     progressMs: d.progress_ms || 0,
     playing: !!d.is_playing,
     device: d.device?.name || '',
+    volume: d.device?.volume_percent ?? null,
+    canVolume: d.device?.supports_volume !== false,
   };
 }
 
@@ -226,8 +236,7 @@ export async function search(q) {
   }));
 }
 
-export async function play(uri) {
-  const body = { uris: [uri] };
+async function startPlayback(body) {
   try {
     await api('PUT', '/me/player/play', { body });
   } catch (e) {
@@ -242,6 +251,50 @@ export async function play(uri) {
   }
 }
 
+export const play = (uri) => startPlayback({ uris: [uri] });
+// Play inside a playlist (so it carries on with the next songs), or the whole playlist if no song is given.
+export const playIn = (contextUri, uri) =>
+  startPlayback(uri ? { context_uri: contextUri, offset: { uri } } : { context_uri: contextUri });
+
+let meId = null;
+async function getMeId() {
+  if (!meId) meId = (await api('GET', '/me'))?.id || '';
+  return meId;
+}
+
+export async function getPlaylists(offset = 0) {
+  const [me, d] = await Promise.all([getMeId(), api('GET', '/me/playlists', { query: { limit: 50, offset } })]);
+  const items = (d?.items || []).filter(Boolean).map((p) => ({
+    id: p.id,
+    uri: p.uri,
+    name: p.name || 'Untitled playlist',
+    art: pickImage(p.images, 160),
+    count: p.items?.total ?? p.tracks?.total ?? null, // Spotify renamed "tracks" to "items" in 2026
+    owner: p.owner?.display_name || p.owner?.id || '',
+    // In development mode Spotify only lets an app open the songs of playlists you own or collaborate on.
+    readable: p.owner?.id === me || !!p.collaborative,
+  }));
+  return { items, hasMore: !!d?.next };
+}
+
+export async function getPlaylistTracks(id, offset = 0) {
+  const d = await api('GET', `/playlists/${id}/items`, { query: { limit: 50, offset, additional_types: 'track' } });
+  const tracks = [];
+  for (const e of d?.items || []) {
+    const t = e?.item || e?.track; // "track" was renamed "item" in 2026; accept both
+    if (!t || t.type !== 'track' || t.is_local || !t.uri) continue;
+    tracks.push({
+      uri: t.uri,
+      name: t.name,
+      artists: (t.artists || []).map((a) => a.name).join(', '),
+      art: pickImage(t.album?.images, 64),
+    });
+  }
+  return { tracks, hasMore: !!d?.next, total: d?.total ?? null };
+}
+
+export const setVolume = (pct) =>
+  api('PUT', '/me/player/volume', { query: { volume_percent: Math.max(0, Math.min(100, Math.round(pct))) } });
 export const resume = () => api('PUT', '/me/player/play');
 export const pause = () => api('PUT', '/me/player/pause');
 export const next = () => api('POST', '/me/player/next');

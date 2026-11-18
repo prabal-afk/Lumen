@@ -198,6 +198,13 @@ a { color: inherit; text-decoration-color: rgb(255 255 255 / 0.35); text-underli
 .progress span { min-width: 38px; }
 .progress span:last-child { text-align: right; }
 .controls { display: flex; align-items: center; gap: 20px; }
+.vol { position: absolute; right: var(--pad); bottom: 34px; display: flex; align-items: center; gap: 10px; }
+.vol input[type='range'] { width: 110px; accent-color: rgb(var(--c1)); cursor: pointer; }
+.vol input[type='range']:disabled { opacity: 0.4; cursor: not-allowed; }
+#btnVol .x { display: none; }
+#btnVol[data-level='mute'] .x { display: block; }
+#btnVol[data-level='mute'] .w1, #btnVol[data-level='mute'] .w2, #btnVol[data-level='low'] .w2 { display: none; }
+@media (max-width: 640px) { .vol input { display: none; } .vol { right: 16px; bottom: 30px; } }
 
 .seek { --p: 0%; -webkit-appearance: none; appearance: none; flex: 1; height: 20px; background: transparent; cursor: pointer; }
 .seek::-webkit-slider-runnable-track { height: 4px; border-radius: 4px; background: linear-gradient(90deg, rgb(var(--c1)) var(--p), rgb(255 255 255 / 0.18) var(--p)); }
@@ -308,6 +315,10 @@ body.idle .bar { transform: translateY(10px); }
 .sl input[type='range'] { width: 100%; accent-color: rgb(var(--c1)); cursor: pointer; }
 .reset { justify-self: start; }
 .hide { display: none !important; }
+.rows { display: grid; gap: 2px; }
+.pl-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.panel-head .panel-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.more { justify-self: center; margin-top: 10px; }
 
 /* ---------- small screens ---------- */
 

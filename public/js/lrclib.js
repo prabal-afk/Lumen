@@ -42,7 +42,8 @@ export async function lookupLyrics(q) {
   // No synced version yet? Look through search results for one with a matching length.
   if (!hit || !hit.syncedLyrics) {
     const p = new URLSearchParams({ track_name: clean || q.track, artist_name: q.artist });
-    const list = (await getJSON(`${BASE}/search?${p}`)) || [];
+    const found = await getJSON(`${BASE}/search?${p}`);
+    const list = Array.isArray(found) ? found : [];
     const dur = q.duration || 0;
     const close = (r) => !dur || !r.duration || Math.abs(r.duration - dur) <= 6;
     const best = list

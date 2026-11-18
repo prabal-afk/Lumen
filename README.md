@@ -6,7 +6,7 @@ Glowing, word-by-word synced lyrics for whatever you're playing on Spotify. Buil
 - Synced lyrics from [LRCLIB](https://lrclib.net) (free, no key). Words light up as they're sung
 - Glow and gradient colours come from the album cover and drift slowly
 - Animated gradient that swells on the beat
-- Full screen, song search, play/pause/skip/seek
+- Full screen, song search, playlists, volume, play/pause/skip/seek
 
 ## Deploy with GitHub and Vercel (free, no installs)
 
@@ -38,6 +38,11 @@ Notes:
 - Open Spotify on the same device and press play once so it counts as an active device.
 - For local use, write `127.0.0.1`, not `localhost`. Spotify rejects `localhost` redirect URIs.
 
+## Playlists and volume
+
+- **Playlists (P):** your Spotify playlists. Open one to see its songs and click a song to play it inside that playlist, or press Play playlist. The first time, Lumen asks you to reconnect Spotify so it can read your playlists. In Spotify's development mode, an app can only list the songs of playlists you own or collaborate on. Other playlists (like Daily Mix) show "tap to play" and play directly.
+- **Volume:** the slider at the bottom right, or the Up and Down arrow keys. M mutes. Some devices (like phones) don't allow volume control from other apps.
+
 ## Customise
 
 Click the palette icon (or press C) to open the Customise panel. Everything is saved in your browser.
@@ -63,7 +68,10 @@ Audio is analysed live in the browser. It is never recorded, stored or sent anyw
 | Space | Play / pause |
 | F | Full screen |
 | S or / | Search |
+| P | Playlists |
 | C | Customise panel |
+| M | Mute / unmute |
+| Up / Down | Volume |
 | B | Beat reaction menu |
 | L | Switch layout (split or centred) |
 | [ and ] | Nudge lyric timing 0.25s earlier / later |
