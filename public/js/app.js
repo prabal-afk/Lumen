@@ -14,6 +14,7 @@ const el = {
   seek: $('#seek'), tCur: $('#tCur'), tDur: $('#tDur'),
   btnPlay: $('#btnPlay'), btnPrev: $('#btnPrev'), btnNext: $('#btnNext'),
   btnSearch: $('#btnSearch'), btnBeat: $('#btnBeat'), btnLayout: $('#btnLayout'), btnFs: $('#btnFs'), btnSettings: $('#btnSettings'),
+  btnStyle: $('#btnStyle'), stylePanel: $('#stylePanel'), styleBody: $('#styleBody'), closeStyle: $('#closeStyle'),
   panel: $('#searchPanel'), searchInput: $('#searchInput'), results: $('#results'), closeSearch: $('#closeSearch'),
   beatMenu: $('#beatMenu'),
   overlay: $('#overlay'), ovSetup: $('#ovSetup'), ovConnect: $('#ovConnect'),
@@ -25,6 +26,7 @@ const el = {
 
 const S = {
   demo: false,
+  albumColors: DEFAULT_PALETTE.colors,
   track: null,
   lyrics: null,
   lines: [],
@@ -206,13 +208,15 @@ function lyricsFrame() {
 
 function setArt(url) {
   el.art.classList.remove('loaded');
+  bg.setArt(url || null);
   if (!url) return;
   el.art.onload = () => el.art.classList.add('loaded');
   el.art.src = url;
 }
 
 function applyPalette(p) {
-  bg.setPalette(p.colors);
+  S.albumColors = p.colors;
+  bg.setPalette(effectivePalette());
 }
 
 function setIdle() {
@@ -360,6 +364,7 @@ let searchTimer;
 function openSearch() {
   el.panel.classList.add('open');
   closeBeatMenu();
+  closeStyle();
   setTimeout(() => el.searchInput.focus(), 200);
 }
 function closeSearch() {
@@ -495,7 +500,7 @@ function wake() {
   document.body.classList.remove('idle');
   clearTimeout(idleTimer);
   idleTimer = setTimeout(() => {
-    const busy = el.panel.classList.contains('open') || !el.overlay.hidden || !el.beatMenu.hidden;
+    const busy = el.panel.classList.contains('open') || el.stylePanel.classList.contains('open') || !el.overlay.hidden || !el.beatMenu.hidden;
     if (S.track && S.playing && !busy) document.body.classList.add('idle');
   }, 3500);
 }
@@ -507,6 +512,229 @@ function nudgeOffset(delta) {
   toast(`Lyrics timing: ${S.offsetMs > 0 ? '+' : ''}${s}s ${S.offsetMs > 0 ? '(later)' : S.offsetMs < 0 ? '(earlier)' : ''}`.trim());
 }
 
+// ---------- customise ----------
+
+const DEFAULTS = {
+  bg: 'flow',
+  colorMode: 'album',
+  custom: ['#ff5e78', '#7850ff', '#3cc8ff', '#ffb05c'],
+  beat: 1,
+  speed: 1,
+  glow: 1,
+  size: 1,
+  font: 'bricolage',
+  align: 'auto',
+};
+
+const BACKGROUNDS = [['flow', 'Flowing'], ['aurora', 'Aurora'], ['spotlight', 'Spotlight'], ['art', 'Album blur'], ['solid', 'Solid']];
+const FONTS = {
+  bricolage: { label: 'Bricolage', css: "'Bricolage Grotesque'", w: 800, track: '-0.025em', s: 1 },
+  dm: { label: 'DM Sans', css: "'DM Sans'", w: 700, track: '-0.03em', s: 1 },
+  fraunces: { label: 'Fraunces', css: "'Fraunces'", w: 800, track: '-0.02em', s: 1 },
+  space: { label: 'Space Grotesk', css: "'Space Grotesk'", w: 700, track: '-0.03em', s: 0.96 },
+  caveat: { label: 'Handwritten', css: "'Caveat'", w: 700, track: '0', s: 1.3 },
+};
+const PRESETS = [
+  ['Sunset', ['#ff5e78', '#ff9a3c', '#ffd166', '#c04cfd']],
+  ['Ocean', ['#3cc8ff', '#4f7cff', '#2ee6c5', '#7a5cff']],
+  ['Neon', ['#ff2d95', '#00e5ff', '#b6ff3c', '#8a2be2']],
+  ['Ember', ['#ff4d4d', '#ff8a3c', '#ffc14d', '#b3122e']],
+  ['Mono', ['#e6e9ff', '#9aa4e8', '#6f7fd0', '#cdbfff']],
+];
+
+function loadCfg() {
+  try {
+    const raw = JSON.parse(localStorage.getItem('lumen.settings') || '{}');
+    const c = { ...DEFAULTS, ...raw };
+    if (!Array.isArray(c.custom) || c.custom.length !== 4) c.custom = DEFAULTS.custom.slice();
+    return c;
+  } catch {
+    return { ...DEFAULTS, custom: DEFAULTS.custom.slice() };
+  }
+}
+const cfg = loadCfg();
+function saveCfg() {
+  try {
+    localStorage.setItem('lumen.settings', JSON.stringify(cfg));
+  } catch {
+    /* storage unavailable: settings last for this visit only */
+  }
+}
+
+const hexToRgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+const effectivePalette = () => (cfg.colorMode === 'custom' ? cfg.custom.map(hexToRgb) : S.albumColors);
+
+const ui = { chips: {}, sliders: {}, swatches: [], customBox: null };
+
+function applyCfg() {
+  bg.setStyle(cfg.bg);
+  bg.speed = cfg.speed;
+  bg.wobble = cfg.colorMode === 'custom' ? 4 : 16;
+  bg.setPalette(effectivePalette());
+  const f = FONTS[cfg.font] || FONTS.bricolage;
+  const r = document.documentElement.style;
+  r.setProperty('--glow', String(cfg.glow));
+  r.setProperty('--ls', String(cfg.size * f.s));
+  r.setProperty('--lyric-font', `${f.css}, 'Segoe UI', system-ui, sans-serif`);
+  r.setProperty('--lyric-weight', String(f.w));
+  r.setProperty('--lyric-track', f.track);
+  el.stage.dataset.align = cfg.align;
+  layoutScroll(true);
+  refreshStyleUI();
+}
+
+function refreshStyleUI() {
+  for (const [key, buttons] of Object.entries(ui.chips)) {
+    buttons.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.val === String(cfg[key]))));
+  }
+  for (const [key, s] of Object.entries(ui.sliders)) {
+    s.input.value = cfg[key];
+    s.out.textContent = s.fmt(cfg[key]);
+  }
+  ui.swatches.forEach((inp, i) => (inp.value = cfg.custom[i]));
+  ui.customBox?.classList.toggle('hide', cfg.colorMode !== 'custom');
+}
+
+function buildStylePanel() {
+  const body = el.styleBody;
+  body.innerHTML = '';
+  const group = (title) => {
+    const g = document.createElement('section');
+    g.className = 'grp';
+    const h = document.createElement('h3');
+    h.textContent = title;
+    g.append(h);
+    body.append(g);
+    return g;
+  };
+  const chipRow = (parent, key, options) => {
+    const row = document.createElement('div');
+    row.className = 'chips';
+    ui.chips[key] = options.map(([val, label]) => {
+      const b = document.createElement('button');
+      b.className = 'chip';
+      b.textContent = label;
+      b.dataset.val = val;
+      b.addEventListener('click', () => {
+        cfg[key] = val;
+        saveCfg();
+        applyCfg();
+      });
+      row.append(b);
+      return b;
+    });
+    parent.append(row);
+    return row;
+  };
+  const slider = (parent, key, label, min, max, step, fmt) => {
+    const wrap = document.createElement('label');
+    wrap.className = 'sl';
+    const top = document.createElement('span');
+    const name = document.createElement('i');
+    name.style.fontStyle = 'normal';
+    name.textContent = label;
+    const out = document.createElement('b');
+    top.append(name, out);
+    const input = document.createElement('input');
+    input.type = 'range';
+    Object.assign(input, { min, max, step });
+    input.addEventListener('input', () => {
+      cfg[key] = Number(input.value);
+      out.textContent = fmt(cfg[key]);
+      saveCfg();
+      applyCfg();
+    });
+    wrap.append(top, input);
+    parent.append(wrap);
+    ui.sliders[key] = { input, out, fmt };
+  };
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  const spacer = (px) => {
+    const d = document.createElement('div');
+    d.style.height = `${px}px`;
+    return d;
+  };
+
+  const g1 = group('Background');
+  chipRow(g1, 'bg', BACKGROUNDS);
+
+  const g2 = group('Colours');
+  chipRow(g2, 'colorMode', [['album', 'From the album'], ['custom', 'My colours']]);
+  const box = document.createElement('div');
+  ui.customBox = box;
+  const presets = document.createElement('div');
+  presets.className = 'chips presets';
+  PRESETS.forEach(([label, cols]) => {
+    const b = document.createElement('button');
+    b.className = 'chip';
+    b.textContent = label;
+    b.addEventListener('click', () => {
+      cfg.custom = cols.slice();
+      saveCfg();
+      applyCfg();
+    });
+    presets.append(b);
+  });
+  const sw = document.createElement('div');
+  sw.className = 'swatches';
+  ui.swatches = [0, 1, 2, 3].map((i) => {
+    const inp = document.createElement('input');
+    inp.type = 'color';
+    inp.setAttribute('aria-label', `Colour ${i + 1}`);
+    inp.addEventListener('input', () => {
+      cfg.custom[i] = inp.value;
+      saveCfg();
+      applyCfg();
+    });
+    sw.append(inp);
+    return inp;
+  });
+  box.append(presets, sw);
+  g2.append(box);
+
+  const g3 = group('Motion');
+  slider(g3, 'beat', 'Beat strength', 0, 2, 0.05, pct);
+  g3.append(spacer(12));
+  slider(g3, 'speed', 'Motion speed', 0.3, 2, 0.05, pct);
+  g3.append(spacer(12));
+  slider(g3, 'glow', 'Glow', 0, 2, 0.05, pct);
+
+  const g4 = group('Lyrics text');
+  slider(g4, 'size', 'Size', 0.7, 1.5, 0.05, pct);
+  const sp1 = document.createElement('div');
+  sp1.style.height = '14px';
+  g4.append(sp1);
+  chipRow(g4, 'font', Object.entries(FONTS).map(([id, f]) => [id, f.label]));
+  const sp2 = document.createElement('div');
+  sp2.style.height = '12px';
+  g4.append(sp2);
+  chipRow(g4, 'align', [['auto', 'Auto'], ['left', 'Left'], ['center', 'Centre']]);
+
+  const reset = document.createElement('button');
+  reset.className = 'ghost reset';
+  reset.textContent = 'Reset to defaults';
+  reset.addEventListener('click', () => {
+    Object.assign(cfg, DEFAULTS, { custom: DEFAULTS.custom.slice() });
+    saveCfg();
+    applyCfg();
+    toast('Customise settings reset.');
+  });
+  body.append(reset);
+}
+
+function openStyle() {
+  el.stylePanel.classList.add('open');
+  closeSearch();
+  closeBeatMenu();
+}
+function closeStyle() {
+  el.stylePanel.classList.remove('open');
+}
+function toggleStyle() {
+  if (el.stylePanel.classList.contains('open')) closeStyle();
+  else openStyle();
+}
+
 // ---------- wiring ----------
 
 function bindUI() {
@@ -514,6 +742,8 @@ function bindUI() {
   el.btnPrev.addEventListener('click', () => skip(-1));
   el.btnNext.addEventListener('click', () => skip(1));
   el.btnSearch.addEventListener('click', openSearch);
+  el.btnStyle.addEventListener('click', toggleStyle);
+  el.closeStyle.addEventListener('click', closeStyle);
   el.closeSearch.addEventListener('click', closeSearch);
   el.btnFs.addEventListener('click', toggleFullscreen);
   el.btnLayout.addEventListener('click', () => {
@@ -581,6 +811,7 @@ function bindUI() {
     if (e.target.matches('input, textarea')) {
       if (e.key === 'Escape') {
         closeSearch();
+        closeStyle();
         e.target.blur();
       }
       return;
@@ -595,7 +826,8 @@ function bindUI() {
       case ']': nudgeOffset(250); break;
       case 'ArrowRight': skip(1); break;
       case 'ArrowLeft': skip(-1); break;
-      case 'Escape': closeSearch(); closeBeatMenu(); break;
+      case 'c': case 'C': toggleStyle(); break;
+      case 'Escape': closeSearch(); closeBeatMenu(); closeStyle(); break;
       default:
     }
   });
@@ -603,13 +835,18 @@ function bindUI() {
 
 // ---------- main loop ----------
 
+const eff = { level: 0, bass: 0, pulse: 0 }; // the beat after the strength setting is applied
 let last = performance.now();
 let lastVars = 0;
 function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   beat.update(dt);
-  bg.frame(now / 1000, dt, beat);
+  const k = cfg.beat;
+  eff.level = Math.min(1, beat.level * k);
+  eff.bass = Math.min(1, beat.bass * k);
+  eff.pulse = Math.min(1.6, beat.pulse * k);
+  bg.frame(now / 1000, dt, eff);
 
   if (now - lastVars > 80) {
     lastVars = now;
@@ -620,7 +857,7 @@ function frame(now) {
   lyricsFrame();
   updateProgress();
 
-  const pv = Math.round(beat.pulse * 50) / 50;
+  const pv = Math.round(eff.pulse * 50) / 50;
   if (pv !== S.lastPulse) {
     S.lastPulse = pv;
     S.nodes[S.idx]?.style.setProperty('--pulse', String(pv));
@@ -658,6 +895,8 @@ async function boot() {
   applyPalette(DEFAULT_PALETTE);
   bindUI();
   applyLayout();
+  buildStylePanel();
+  applyCfg();
   syncPlayIcon();
   requestAnimationFrame(frame);
   wake();

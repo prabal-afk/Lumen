@@ -38,6 +38,15 @@ Notes:
 - Open Spotify on the same device and press play once so it counts as an active device.
 - For local use, write `127.0.0.1`, not `localhost`. Spotify rejects `localhost` redirect URIs.
 
+## Customise
+
+Click the palette icon (or press C) to open the Customise panel. Everything is saved in your browser.
+
+- **Background:** Flowing, Aurora, Spotlight, Album blur or Solid
+- **Colours:** take them from the album, or pick your own four colours or a preset
+- **Motion:** beat strength, motion speed and glow
+- **Lyrics text:** size, five fonts, and left, centre or automatic alignment
+
 ## Beat reaction
 
 Spotify no longer gives new apps beat or tempo data, so Lumen listens to the audio itself. Click the equaliser icon (or press B):
@@ -54,6 +63,7 @@ Audio is analysed live in the browser. It is never recorded, stored or sent anyw
 | Space | Play / pause |
 | F | Full screen |
 | S or / | Search |
+| C | Customise panel |
 | B | Beat reaction menu |
 | L | Switch layout (split or centred) |
 | [ and ] | Nudge lyric timing 0.25s earlier / later |
