@@ -59,7 +59,8 @@ a { color: inherit; text-decoration-color: rgb(255 255 255 / 0.35); text-underli
   padding: 20px var(--pad);
   transition: opacity 0.5s;
 }
-.brand { font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; text-shadow: 0 0 18px rgb(var(--c1) / 0.7); }
+.brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--display); font-weight: 800; font-size: 22px; letter-spacing: -0.02em; text-shadow: 0 0 18px rgb(var(--c1) / 0.7); }
+.brand img { display: block; filter: drop-shadow(0 0 10px rgb(var(--c2) / 0.7)); }
 .tools { display: flex; gap: 8px; }
 
 .icon {
