@@ -572,6 +572,16 @@ const FONTS = {
   fraunces: { label: 'Fraunces', css: "'Fraunces'", w: 800, track: '-0.02em', s: 1 },
   space: { label: 'Space Grotesk', css: "'Space Grotesk'", w: 700, track: '-0.03em', s: 0.96 },
   caveat: { label: 'Handwritten', css: "'Caveat'", w: 700, track: '0', s: 1.3 },
+  poppins: { label: 'Poppins', css: "'Poppins'", w: 700, track: '-0.02em', s: 0.96 },
+  montserrat: { label: 'Montserrat', css: "'Montserrat'", w: 800, track: '-0.03em', s: 0.94 },
+  outfit: { label: 'Outfit', css: "'Outfit'", w: 700, track: '-0.02em', s: 1.02 },
+  syne: { label: 'Syne', css: "'Syne'", w: 800, track: '-0.03em', s: 0.95 },
+  archivo: { label: 'Archivo Black', css: "'Archivo Black'", w: 400, track: '-0.02em', s: 0.92 },
+  bebas: { label: 'Bebas Neue', css: "'Bebas Neue'", w: 400, track: '0.01em', s: 1.3 },
+  playfair: { label: 'Playfair', css: "'Playfair Display'", w: 800, track: '-0.02em', s: 0.98 },
+  pacifico: { label: 'Pacifico', css: "'Pacifico'", w: 400, track: '0', s: 0.82 },
+  righteous: { label: 'Righteous', css: "'Righteous'", w: 400, track: '0', s: 0.95 },
+  mono: { label: 'Space Mono', css: "'Space Mono'", w: 700, track: '-0.04em', s: 0.78 },
 };
 const PRESETS = [
   ['Sunset', ['#ff5e78', '#ff9a3c', '#ffd166', '#c04cfd']],
@@ -654,6 +664,7 @@ function buildStylePanel() {
       b.className = 'chip';
       b.textContent = label;
       b.dataset.val = val;
+      if (key === 'font') b.style.fontFamily = `${FONTS[val].css}, sans-serif`;
       b.addEventListener('click', () => {
         cfg[key] = val;
         saveCfg();
