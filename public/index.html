@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#04050a">
+  <title>Lumen</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="vignette" aria-hidden="true"></div>
+
+  <header class="top">
+    <span class="brand">lumen</span>
+    <nav class="tools" aria-label="Tools">
+      <button class="icon" id="btnSearch" title="Search songs (S)" aria-label="Search songs">
+        <svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </button>
+      <button class="icon" id="btnBeat" title="Beat reaction (B)" aria-label="Beat reaction">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M5 20V10M10 20V4M15 20V8M20 20v-6"/></svg>
+      </button>
+      <button class="icon" id="btnLayout" title="Switch layout (L)" aria-label="Switch layout">
+        <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 4v16"/></svg>
+      </button>
+      <button class="icon" id="btnFs" title="Full screen (F)" aria-label="Full screen">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+      </button>
+      <button class="icon" id="btnSettings" title="Spotify settings" aria-label="Spotify settings">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>
+      </button>
+    </nav>
+  </header>
+
+  <main class="stage" id="stage" data-layout="split">
+    <section class="now">
+      <div class="art-wrap">
+        <div class="art-glow" id="artGlow"></div>
+        <img id="art" alt="Album art">
+      </div>
+      <div class="meta">
+        <h1 id="title">Nothing playing</h1>
+        <p id="artist"></p>
+      </div>
+    </section>
+
+    <section class="lyrics" id="lyrics" aria-live="off">
+      <div class="lyrics-inner" id="lyricsInner"></div>
+      <p class="note" id="note"></p>
+    </section>
+  </main>
+
+  <footer class="bar">
+    <div class="progress">
+      <span id="tCur">0:00</span>
+      <input class="seek" id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek">
+      <span id="tDur">0:00</span>
+    </div>
+    <div class="controls">
+      <button class="icon lg" id="btnPrev" aria-label="Previous song">
+        <svg class="ico fill" viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9.5 12z"/></svg>
+      </button>
+      <button class="icon xl" id="btnPlay" aria-label="Play or pause">
+        <svg class="ico fill i-play" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg class="ico fill i-pause" viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+      </button>
+      <button class="icon lg" id="btnNext" aria-label="Next song">
+        <svg class="ico fill" viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5l10.5 7L4 19z"/></svg>
+      </button>
+    </div>
+  </footer>
+
+  <aside class="panel" id="searchPanel" aria-label="Search songs">
+    <div class="panel-head">
+      <input id="searchInput" type="search" placeholder="Search for a song or artist" autocomplete="off" spellcheck="false">
+      <button class="icon" id="closeSearch" aria-label="Close search">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg>
+      </button>
+    </div>
+    <div class="results" id="results"></div>
+  </aside>
+
+  <div class="popover" id="beatMenu" hidden>
+    <h3>Beat reaction</h3>
+    <p>Spotify doesn't share beat data with new apps, so Lumen listens to the sound itself. The audio is analysed in your browser and never recorded or sent anywhere.</p>
+    <button data-beat="system"><b>System audio</b><span>Best. Pick "Entire screen" and tick "Also share system audio".</span></button>
+    <button data-beat="mic"><b>Microphone</b><span>Works with speakers. Picks up the room.</span></button>
+    <button data-beat="off"><b>Off</b><span>Calm ambient motion only.</span></button>
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="card">
+      <div id="ovSetup" hidden>
+        <h2>Set up Spotify</h2>
+        <p class="lead">Lumen reads what you're playing through Spotify. You only do this once.</p>
+        <ol class="steps">
+          <li>Open the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify developer dashboard</a> and create an app.</li>
+          <li>Add this Redirect URI to it: <code id="redirect"></code> <button class="mini" id="copyRedirect">Copy</button></li>
+          <li>Tick <b>Web API</b>, save, then copy the app's <b>Client ID</b> and paste it here.</li>
+        </ol>
+        <label class="field">Client ID
+          <input id="clientId" placeholder="32 characters" spellcheck="false" autocomplete="off">
+        </label>
+        <p class="fine">Spotify requires the account that owns the app to have Premium. A new app can have up to 5 users.</p>
+        <div class="row">
+          <button class="primary" id="saveClient">Save and continue</button>
+          <button class="ghost" id="cancelOv" hidden>Cancel</button>
+          <button class="ghost" id="signOut" hidden>Sign out</button>
+        </div>
+        <p class="fine"><a href="/?demo">Preview the look without Spotify</a></p>
+      </div>
+
+      <div id="ovConnect" hidden>
+        <h2>Connect Spotify</h2>
+        <p class="lead">You'll sign in on Spotify's own page. Lumen never sees your password.</p>
+        <div class="row">
+          <button class="primary" id="connect">Connect Spotify</button>
+          <button class="ghost" id="changeClient">Change Client ID</button>
+        </div>
+        <p class="fine"><a href="/?demo">Preview the look without Spotify</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

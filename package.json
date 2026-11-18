@@ -1,0 +1,14 @@
+{
+  "name": "lumen",
+  "version": "1.0.0",
+  "description": "Glowing, beat-reactive, synced lyrics for whatever you're playing on Spotify.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js --open"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
